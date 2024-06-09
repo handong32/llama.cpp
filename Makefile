@@ -2,7 +2,7 @@
 BUILD_TARGETS = \
 	main quantize quantize-stats perplexity imatrix embedding vdot q8dot train-text-from-scratch convert-llama2c-to-ggml \
 	simple batched batched-bench save-load-state server gguf gguf-split eval-callback llama-bench libllava.a llava-cli baby-llama beam-search  \
-	retrieval speculative infill tokenize benchmark-matmult parallel finetune export-lora lookahead lookup passkey gritlm tests/test-c.o
+	retrieval speculative infill tokenize simple-ctx benchmark-matmult parallel finetune export-lora lookahead lookup passkey gritlm tests/test-c.o
 
 # Binaries only useful for tests
 TEST_TARGETS = \
@@ -127,9 +127,10 @@ endif
 
 # keep standard at C11 and C++11
 MK_CPPFLAGS  = -I. -Icommon
-MK_CFLAGS    = -std=c11   -fPIC
-MK_CXXFLAGS  = -std=c++11 -fPIC
-MK_NVCCFLAGS = -std=c++11
+#MK_CFLAGS    = -std=c11   -fPIC
+#MK_CXXFLAGS  = -std=c++11 -fPIC
+#MK_NVCCFLAGS = -std=c++11
+MK_CXXFLAGS  = -std=gnu++14
 
 # -Ofast tends to produce faster code, but may not be available for some compilers.
 ifdef LLAMA_FAST
@@ -158,7 +159,7 @@ endif # LLAMA_NO_CCACHE
 # CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
 # posix_memalign came in POSIX.1-2001 / SUSv3
 # M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
-MK_CPPFLAGS += -D_XOPEN_SOURCE=600
+#MK_CPPFLAGS += -D_XOPEN_SOURCE=600
 
 # Somehow in OpenBSD whenever POSIX conformance is specified
 # some string functions rely on locale_t availability,
@@ -307,6 +308,9 @@ endif
 ifndef RISCV
 
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
+#	MK_CFLAGS     += -march=haswell
+#	HOST_CXXFLAGS += -march=haswell
+
 	# Use all CPU extensions that are available:
 	MK_CFLAGS     += -march=native -mtune=native
 	HOST_CXXFLAGS += -march=native -mtune=native
@@ -754,7 +758,7 @@ libllama.a: llama.o ggml.o $(OBJS) $(COMMON_DEPS)
 	ar rcs libllama.a llama.o ggml.o $(OBJS) $(COMMON_DEPS)
 
 clean:
-	rm -vrf *.o tests/*.o *.so *.a *.dll benchmark-matmult lookup-create lookup-merge lookup-stats common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
+	rm -vrf *.o tests/*.o *.so *.a *.dll benchmark-matmult simple-ctx lookup-create lookup-merge lookup-stats common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 	rm -vrf ggml-cuda/*.o
 	find examples pocs -type f -name "*.o" -delete
 
@@ -942,6 +946,10 @@ build-info.o: common/build-info.cpp
 
 tests: $(TEST_TARGETS)
 
+simple-ctx: examples/simple-ctx/simple-ctx.cpp ggml.o $(OBJS)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
+
 benchmark-matmult: examples/benchmark/benchmark-matmult.cpp build-info.o ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
@@ -949,7 +957,7 @@ benchmark-matmult: examples/benchmark/benchmark-matmult.cpp build-info.o ggml.o 
 run-benchmark-matmult: benchmark-matmult
 	./$@
 
-.PHONY: run-benchmark-matmult swift
+.PHONY: run-benchmark-matmult swift simple-ctx
 
 vdot: pocs/vdot/vdot.cpp ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
