@@ -27,8 +27,9 @@ int main(int argc, char ** argv) {
     }
 
     // total length of the sequence including the prompt
-    const int n_len = 32;
-
+    const int n_len = 10;
+    params.n_threads = 4;
+      
     // init LLM
 
     llama_backend_init();

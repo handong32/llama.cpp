@@ -65,33 +65,28 @@ void load_model(simple_model & model, float * a, float * b, int rows_A, int cols
 
 // build the compute graph to perform a matrix multiplication
 struct ggml_cgraph * build_graph(const simple_model& model) {
-    struct ggml_cgraph  * gf = ggml_new_graph(model.ctx);
-
+  struct ggml_cgraph  * gf = ggml_new_graph(model.ctx);
     // result = a*b^T
     struct ggml_tensor * result = ggml_mul_mat(model.ctx, model.a, model.b);
-
     ggml_build_forward_expand(gf, result);
     return gf;
 }
 
 // compute with backend
 struct ggml_tensor * compute(const simple_model & model) {
-    struct ggml_cgraph * gf = build_graph(model);
-
-    int n_threads = 1; // number of threads to perform some operations with multi-threading
-
+  struct ggml_cgraph * gf = build_graph(model);
+    int n_threads = 16; // number of threads to perform some operations with multi-threading
     ggml_graph_compute_with_ctx(model.ctx, gf, n_threads);
-
     // in this case, the output tensor is the last one in the graph
     return gf->nodes[gf->n_nodes - 1];
 }
 
 int main(void) {
   //ggml_time_init();
-  for (int t = 0; t < 10; t++) {
+  for (int t = 0; t < 1; t++) {
     uint64_t tsc_start = rdtsc();
     
-    for (int i = 0; i < 1000000; i++) {
+    for (int i = 0; i < 1; i++) {
       // initialize data of matrices to perform matrix multiplication
       const int rows_A = 4, cols_A = 2;
       
@@ -103,10 +98,6 @@ int main(void) {
       };
       
       const int rows_B = 3, cols_B = 2;
-      /* Transpose([
-	 10, 9, 5,
-	 5, 9, 4
-	 ]) 2 rows, 3 cols */
       float matrix_B[rows_B * cols_B] = {
         10, 5,
         9, 9,

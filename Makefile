@@ -2,7 +2,7 @@
 BUILD_TARGETS = \
 	main quantize quantize-stats perplexity imatrix embedding vdot q8dot train-text-from-scratch convert-llama2c-to-ggml \
 	simple batched batched-bench save-load-state server gguf gguf-split eval-callback llama-bench libllava.a llava-cli baby-llama beam-search  \
-	retrieval speculative infill tokenize simple-ctx benchmark-matmult parallel finetune export-lora lookahead lookup passkey gritlm tests/test-c.o
+	retrieval speculative infill tokenize simple-ctx custom benchmark-matmult parallel finetune export-lora lookahead lookup passkey gritlm tests/test-c.o
 
 # Binaries only useful for tests
 TEST_TARGETS = \
@@ -707,6 +707,9 @@ endif
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
+ggml-test.o: ggml-test.cpp
+	$(CXX)  $(CXXFLAGS)   -c $< -o $@
+
 ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
@@ -758,7 +761,7 @@ libllama.a: llama.o ggml.o $(OBJS) $(COMMON_DEPS)
 	ar rcs libllama.a llama.o ggml.o $(OBJS) $(COMMON_DEPS)
 
 clean:
-	rm -vrf *.o tests/*.o *.so *.a *.dll benchmark-matmult simple-ctx lookup-create lookup-merge lookup-stats common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
+	rm -vrf *.o tests/*.o *.so *.a *.dll benchmark-matmult simple-ctx custom lookup-create lookup-merge lookup-stats common/build-info.cpp *.dot $(COV_TARGETS) $(BUILD_TARGETS) $(TEST_TARGETS)
 	rm -vrf ggml-cuda/*.o
 	find examples pocs -type f -name "*.o" -delete
 
@@ -946,7 +949,11 @@ build-info.o: common/build-info.cpp
 
 tests: $(TEST_TARGETS)
 
-simple-ctx: examples/simple-ctx/simple-ctx.cpp ggml.o $(OBJS)
+custom: examples/custom/custom.cpp ggml-test.o ggml.o $(OBJS)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
+
+simple-ctx: examples/simple-ctx/simple-ctx.cpp ggml-test.o ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
@@ -957,7 +964,7 @@ benchmark-matmult: examples/benchmark/benchmark-matmult.cpp build-info.o ggml.o 
 run-benchmark-matmult: benchmark-matmult
 	./$@
 
-.PHONY: run-benchmark-matmult swift simple-ctx
+.PHONY: run-benchmark-matmult swift simple-ctx custom
 
 vdot: pocs/vdot/vdot.cpp ggml.o $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
